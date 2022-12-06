@@ -36,7 +36,7 @@ def consume():
 
         rand_str = ''.join(random.choice(string.ascii_letters) for i in range(4))
         prefix = "Video-Convert-Core-" + "(" + rand_str + ")"
-        log.info(prefix + " Running..........")
+        #log.info(prefix + " Running..........")
         while True:
             for msg in consumer:
                 data = {}
@@ -44,7 +44,7 @@ def consume():
                     data = msg.value
                     if data:
                         if msg.topic == video_convert_input_topic:
-                            log.info(prefix + " | Received on Topic: " + msg.topic + " | Partition: " + str(msg.partition), data)
+                            #log.info(prefix + " | Received on Topic: " + msg.topic + " | Partition: " + str(msg.partition), data)
                             pass
                     else:
                         break

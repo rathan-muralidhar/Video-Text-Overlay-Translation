@@ -3,11 +3,16 @@ import cv2
 import numpy as np
 import pytesseract
 from pathlib import Path
+import logging
 from config.config import OUTPUT_DIR
+from logging.config import dictConfig
+
+log = logging.getLogger('file')
 
 class BOXES_HELPER():
     def get_organized_tesseract_dictionary(self, tesseract_dictionary):
         res = {}
+        log.info(f"Tesseract Dictionary {tesseract_dictionary}")
         n_boxes = len(tesseract_dictionary['level'])
 
         # Organize blocks
@@ -224,12 +229,11 @@ class OCR_HANDLER:
     def ocr_frame(self, frame):
 
         im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
-
-        if (self.ocr_type == "LINES"):
-            frame = self.boxes_helper.show_boxes_lines(d, frame)
-        else:
-            frame = self.boxes_helper.show_boxes_words(d, frame)
-
+        if d is not None: 
+            if (self.ocr_type == "LINES"):
+                frame = self.boxes_helper.show_boxes_lines(d, frame)
+            else:
+                frame = self.boxes_helper.show_boxes_words(d, frame)
         return frame
 
     def compute_best_preprocess(self, frame):
@@ -270,3 +274,36 @@ class OCR_HANDLER:
                 #print(opt)
 
         return best_im, best_d
+
+# Log config
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] {%(filename)s:%(lineno)d} %(threadName)s %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {
+        'info': {
+            'class': 'logging.FileHandler',
+            'level': 'DEBUG',
+            'formatter': 'default',
+            'filename': 'info.log'
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'DEBUG',
+            'formatter': 'default',
+            'stream': 'ext://sys.stdout',
+        }
+    },
+    'loggers': {
+        'file': {
+            'level': 'DEBUG',
+            'handlers': ['info', 'console'],
+            'propagate': ''
+        }
+    },
+    'root': {
+        'level': 'DEBUG',
+        'handlers': ['info', 'console']
+    }
+})
