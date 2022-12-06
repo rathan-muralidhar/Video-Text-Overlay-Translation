@@ -21,8 +21,11 @@ CURRENTLY EMPTY
 
 ## Postman Collection
 To play around with the APIs and some hands on, Use this on Postman: 
+
 {
+
   "filename":"input/scaling.mov"
+  
 }
 
 ## License
