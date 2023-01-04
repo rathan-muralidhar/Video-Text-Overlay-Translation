@@ -146,12 +146,10 @@ class OCR_HANDLER:
         self.fps = round(video.get(cv2.CAP_PROP_FPS))  # get the FPS of the video_filepath
         frames_durations, frame_count = self.get_saving_frames_durations(video, self.fps)  # list of point to save
 
-        print("SAVING VIDEO:", frame_count, "FRAMES AT", self.fps, "FPS")
+        log.info("SAVING VIDEO:", frame_count, "FRAMES AT", self.fps, "FPS")
 
         idx = 0
-        print(":", end='', flush=True)
         while True:
-            print("=", end='', flush=True)
             is_read, frame = video.read()
             if not is_read:  # break out of the loop if there are no frames to read
                 break
@@ -169,9 +167,7 @@ class OCR_HANDLER:
                 cv2.imwrite(output_name, frame)
 
                 if (idx % 10 == 0) and (idx > 0):
-                    print(">")
-                    print("Saving frame: ..." + output_name)
-                    print(":", end='', flush=True)
+                    log.info(f"Saving frame: {output_name} with index {idx}, frame_duration {frame_duration} and closest_duration {closest_duration}")
                 # drop the duration spot from the list, since this duration spot is already saved
                 try:
                     frames_durations.pop(0)
@@ -179,9 +175,9 @@ class OCR_HANDLER:
                     pass
             # increment the frame count
             idx += 1
-        if (idx - 1 % 10 != 0):
-            print(">")
-        print("\nSaved and processed", idx, "frames")
+        #if (idx - 1 % 10 != 0):
+            #print(">")
+        log.info("\nSaved and processed", idx, "frames")
         video.release()
 
     def assemble_video(self):
@@ -222,8 +218,10 @@ class OCR_HANDLER:
         # get the clip duration by dividing number of frames by the number of frames per second
         clip_duration = video.get(cv2.CAP_PROP_FRAME_COUNT) / video.get(cv2.CAP_PROP_FPS)
         # use np.arange() to make floating-point steps
+        log.info(f"Clip Duration in seconds: {clip_duration}")
         for i in np.arange(0, clip_duration, 1 / saving_fps):
             s.append(i)
+        #s is list of seconds where frame must be taken
         return s, video.get(cv2.CAP_PROP_FRAME_COUNT)
 
     def ocr_frame(self, frame):
