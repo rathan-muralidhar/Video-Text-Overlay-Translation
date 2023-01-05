@@ -6,6 +6,9 @@ from pathlib import Path
 import logging
 from config.config import OUTPUT_DIR
 from logging.config import dictConfig
+import math
+import requests
+from PIL import ImageFont, ImageDraw, Image
 
 log = logging.getLogger('file')
 
@@ -86,24 +89,101 @@ class BOXES_HELPER():
 
         return res
 
+    def midpoint(self,x1, y1, x2, y2):
+        x_mid = int((x1 + x2)/2)
+        y_mid = int((y1 + y2)/2)
+        return (x_mid, y_mid)
+
+    def get_translation(self,text_input):
+        url = 'https://meity-dev.ulcacontrib.org/aai4b-nmt-inference/v0/translate'
+        parameters = {
+                        "input": [
+                        {
+                            "source": text_input
+                        }
+                        ],
+                        "config": {
+                            "modelId":103,
+                            "language": {
+                                "sourceLanguage": "en",
+                                "targetLanguage": "hi"
+                            }
+                        }
+                    }
+        x = requests.post(url, json = parameters)
+        return x.json()['output'][0]['target']
+
     def show_boxes_lines(self, d, frame):
         text_vertical_margin = 12
         organized_tesseract_dictionary = self.get_organized_tesseract_dictionary(d)
         lines_with_words = self.get_lines_with_words(organized_tesseract_dictionary)
         # print(lines_with_words)
         for line in lines_with_words:
+            if line['text'] == '': 
+                continue
             x = line['left']
             y = line['top']
             h = line['height']
             w = line['width']
-            frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            frame = cv2.putText(frame,
-                                text=line['text'],
-                                org=(x, y - text_vertical_margin),
-                                fontFace=cv2.FONT_HERSHEY_DUPLEX,
-                                fontScale=1,
-                                color=(0, 255, 0),
-                                thickness=2)
+            #Modification: Remove the current text and replace it with surrounding color
+            #left is x coordinate (Top left)
+            #top is y coordinate (Top left)
+            #height = difference between x coordinates
+            #width = difference between y coordinates
+            #confidence = % of confidence that it's a text
+
+            #Mods - for enlarging area of text
+            # line['left'] -= 15
+            # line['top'] -= 15
+            # line['width'] += 15
+            # line['height'] += 15
+
+            #Top left
+            x1 = line['left']
+            y1 = line['top']
+
+            #Top right
+            x2 = line['left'] + line['width']
+            y2 = line['top']
+
+            #Bottom left
+            x3 = line['left']
+            y3 = line['top'] + line['height']
+
+            #Bottom Right
+            x4 = line['left'] + line['width']
+            y4 = line['top'] + line['height']
+
+            x_mid0, y_mid0 = self.midpoint(x1, y1, x3, y3)
+            x_mid1, y_mi1 = self.midpoint(x2, y2, x4, y4)
+            thickness = int(math.sqrt( (x3 - x1)**2 + (y3 - y1)**2 ))
+            
+            mask = np.zeros(frame.shape[:2], dtype="uint8")
+            cv2.line(mask, (x_mid0, y_mid0), (x_mid1, y_mi1), 255, thickness)
+            #masked = cv2.bitwise_and(frame, frame, mask=mask)
+            frame = cv2.inpaint(frame, mask, 7, cv2.INPAINT_NS)
+
+            #Summary: Add text and rectangle around already existing text within the frame.
+            # frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            translated_text = self.get_translation(line['text'])
+            log.info(f"Text to be printed {translated_text}")
+
+            fontpath = "./Fonts/TiroDevanagariHindi-Regular.ttf" # <== 这里是宋体路径 
+            font = ImageFont.truetype(fontpath, 32)
+            img_pil = Image.fromarray(frame)
+            draw = ImageDraw.Draw(img_pil)
+            draw.text((x, y),  translated_text, font = font, fill = (0, 255, 0, 0))
+            frame = np.array(img_pil)
+
+            #Summary: CV2 Put Text to store text within frame
+            # frame = cv2.putText(frame,
+            #                     text=translated_text,
+            #                     #org=(x, y - text_vertical_margin),
+            #                     org=(x, y),
+            #                     fontFace=cv2.FONT_HERSHEY_DUPLEX,
+            #                     fontScale=0.5,
+            #                     color=(0, 255, 0),
+            #                     thickness=1)
         return frame
 
     def show_boxes_words(self, d, frame):
