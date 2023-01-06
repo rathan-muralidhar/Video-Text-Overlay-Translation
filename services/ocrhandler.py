@@ -9,6 +9,7 @@ from logging.config import dictConfig
 import math
 import requests
 from PIL import ImageFont, ImageDraw, Image
+from paddleocr import PaddleOCR
 
 log = logging.getLogger('file')
 
@@ -115,16 +116,46 @@ class BOXES_HELPER():
 
     def show_boxes_lines(self, d, frame):
         text_vertical_margin = 12
-        organized_tesseract_dictionary = self.get_organized_tesseract_dictionary(d)
-        lines_with_words = self.get_lines_with_words(organized_tesseract_dictionary)
-        # print(lines_with_words)
-        for line in lines_with_words:
-            if line['text'] == '': 
-                continue
-            x = line['left']
-            y = line['top']
-            h = line['height']
-            w = line['width']
+        #organized_tesseract_dictionary = self.get_organized_tesseract_dictionary(d)
+        #lines_with_words = self.get_lines_with_words(organized_tesseract_dictionary)
+        #print(lines_with_words)
+        result = self.ocr.ocr(frame, cls=True)
+        print(result)
+        for element in result[0]:
+            
+            #paddleocr
+            #top left coordinates
+            x1 = element[0][0][0]
+            y1 = element[0][0][1]
+            #top right coordinates
+            x2 = element[0][1][0]
+            y2 = element[0][1][1]
+            #bottom left coordinates
+            x3 = element[0][3][0]
+            y3 = element[0][3][1]
+            #bottom right coordinates
+            x4 = element[0][2][0]
+            y4 = element[0][2][1]
+            #text
+            text = element[1][0]
+            #confidence
+            confidence = element[1][1]
+
+            
+            
+            
+            #Pytesseract Code
+            # if line['text'] == '': 
+            #     continue
+            # x = line['left']
+            # y = line['top']
+            # h = line['height']
+            # w = line['width']
+
+
+
+
+
             #Modification: Remove the current text and replace it with surrounding color
             #left is x coordinate (Top left)
             #top is y coordinate (Top left)
@@ -138,21 +169,21 @@ class BOXES_HELPER():
             # line['width'] += 15
             # line['height'] += 15
 
-            #Top left
-            x1 = line['left']
-            y1 = line['top']
+            # #Top left
+            # x1 = line['left']
+            # y1 = line['top']
 
-            #Top right
-            x2 = line['left'] + line['width']
-            y2 = line['top']
+            # #Top right
+            # x2 = line['left'] + line['width']
+            # y2 = line['top']
 
-            #Bottom left
-            x3 = line['left']
-            y3 = line['top'] + line['height']
+            # #Bottom left
+            # x3 = line['left']
+            # y3 = line['top'] + line['height']
 
-            #Bottom Right
-            x4 = line['left'] + line['width']
-            y4 = line['top'] + line['height']
+            # #Bottom Right
+            # x4 = line['left'] + line['width']
+            # y4 = line['top'] + line['height']
 
             x_mid0, y_mid0 = self.midpoint(x1, y1, x3, y3)
             x_mid1, y_mi1 = self.midpoint(x2, y2, x4, y4)
@@ -165,7 +196,7 @@ class BOXES_HELPER():
 
             #Summary: Add text and rectangle around already existing text within the frame.
             # frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            translated_text = self.get_translation(line['text'])
+            translated_text = self.get_translation(text)
             log.info(f"Text to be printed {translated_text}")
 
             fontpath = "./Fonts/TiroDevanagariHindi-Regular.ttf" # <== 这里是宋体路径 
@@ -204,6 +235,7 @@ class OCR_HANDLER:
 
     def __init__(self, video_filepath, cv2_helper, ocr_type="WORDS"):
         # The video_filepath's name with extension
+        self.ocr = PaddleOCR(use_angle_cls=True, lang='en')
         self.video_filepath = video_filepath
         self.cv2_helper = cv2_helper
         self.ocr_type = ocr_type
@@ -212,11 +244,10 @@ class OCR_HANDLER:
         self.frames_folder = OUTPUT_DIR + 'temp/' + self.video_name + '_frames'
         self._fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Change to 'MP4V' if this doesn't work on your OS.
         self.out_extension = '.mp4'
-        self.out_name = self.video_name + '_boxes' + self.out_extension
+        self.out_name = self.video_name + '_converted' + self.out_extension
 
     ########## EXTRACT FRAMES AND FIND WORDS #############
     def process_frames(self):
-
         frame_name = './' + self.frames_folder + '/' + self.video_name + '_frame_'
 
         if not os.path.exists(self.frames_folder):
