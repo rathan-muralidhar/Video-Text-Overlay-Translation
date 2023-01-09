@@ -249,6 +249,38 @@ class OCR_HANDLER:
         self.out_name = self.video_name + '_converted' + self.out_extension
 
     ########## EXTRACT FRAMES AND FIND WORDS #############
+    def ssim(self, i1, i2):
+        c1 = 6.5025
+        c2 = 58.5225
+        # INITS
+        I1 = np.float32(i1) # cannot calculate on one byte large values
+        I2 = np.float32(i2)
+        I2_2 = I2 * I2 # I2^2
+        I1_2 = I1 * I1 # I1^2
+        I1_I2 = I1 * I2 # I1 * I2
+        # END INITS
+        # PRELIMINARY COMPUTING
+        mu1 = cv2.GaussianBlur(I1, (11, 11), 1.5)
+        mu2 = cv2.GaussianBlur(I2, (11, 11), 1.5)
+        mu1_2 = mu1 * mu1
+        mu2_2 = mu2 * mu2
+        mu1_mu2 = mu1 * mu2
+        sigma1_2 = cv2.GaussianBlur(I1_2, (11, 11), 1.5)
+        sigma1_2 -= mu1_2
+        sigma2_2 = cv2.GaussianBlur(I2_2, (11, 11), 1.5)
+        sigma2_2 -= mu2_2
+        sigma12 = cv2.GaussianBlur(I1_I2, (11, 11), 1.5)
+        sigma12 -= mu1_mu2
+        t1 = 2 * mu1_mu2 + c1
+        t2 = 2 * sigma12 + c2
+        t3 = t1 * t2                    # t3 = ((2*mu1_mu2 + C1).*(2*sigma12 + C2))
+        t1 = mu1_2 + mu2_2 + c1
+        t2 = sigma1_2 + sigma2_2 + c2
+        t1 = t1 * t2                    # t1 =((mu1_2 + mu2_2 + C1).*(sigma1_2 + sigma2_2 + C2))
+        ssim_map = cv2.divide(t3, t1)    # ssim_map =  t3./t1;
+        mssim = cv2.mean(ssim_map)       # mssim = average of ssim map
+        return sum(mssim[0:3])
+
     def process_frames(self):
         frame_name = './' + self.frames_folder + '/' + self.video_name + '_frame_'
 
@@ -262,10 +294,34 @@ class OCR_HANDLER:
         log.info("SAVING VIDEO:", frame_count, "FRAMES AT", self.fps, "FPS")
 
         idx = 0
+        previous_frame = None
+        output_frame = None
         while True:
-            is_read, frame = video.read()
+            is_read, frame = video.read()            
             if not is_read:  # break out of the loop if there are no frames to read
                 break
+
+            if idx!=0:
+                log.info(f"SIMILARITY OF FRAMES: {self.ssim(previous_frame,frame)}")
+                if(self.ssim(previous_frame,frame) >= 2.8):
+                    output_name = frame_name + str(idx) + '.png'
+                    #output_frame = self.ocr_frame(frame)
+                    cv2.imwrite(output_name, output_frame)
+                    previous_frame = frame
+                    log.info(f"Saving frame: {output_name} with index {idx}, frame_duration {frame_duration} and closest_duration {closest_duration}")
+                    # drop the duration spot from the list, since this duration spot is already saved
+                    try:
+                        frames_durations.pop(0)
+                    except IndexError:
+                        pass
+                    # increment the frame count
+                    idx += 1
+                    continue
+                else:
+                    previous_frame = frame
+            else: 
+                previous_frame = frame
+
             frame_duration = idx / self.fps
             try:
                 # get the earliest duration to save
