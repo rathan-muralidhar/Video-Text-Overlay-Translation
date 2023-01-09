@@ -14,6 +14,9 @@ from paddleocr import PaddleOCR
 log = logging.getLogger('file')
 
 class BOXES_HELPER():
+    def __init__(self):
+        self.ocr = PaddleOCR(use_angle_cls=True, lang='en') # need to run only once to download and load model into memory
+
     def get_organized_tesseract_dictionary(self, tesseract_dictionary):
         res = {}
         log.info(f"Tesseract Dictionary {tesseract_dictionary}")
@@ -203,7 +206,7 @@ class BOXES_HELPER():
             font = ImageFont.truetype(fontpath, 32)
             img_pil = Image.fromarray(frame)
             draw = ImageDraw.Draw(img_pil)
-            draw.text((x, y),  translated_text, font = font, fill = (0, 255, 0, 0))
+            draw.text((x1, y1),  translated_text, font = font, fill = (0, 0, 0, 0))
             frame = np.array(img_pil)
 
             #Summary: CV2 Put Text to store text within frame
@@ -235,7 +238,6 @@ class OCR_HANDLER:
 
     def __init__(self, video_filepath, cv2_helper, ocr_type="WORDS"):
         # The video_filepath's name with extension
-        self.ocr = PaddleOCR(use_angle_cls=True, lang='en')
         self.video_filepath = video_filepath
         self.cv2_helper = cv2_helper
         self.ocr_type = ocr_type
@@ -274,11 +276,9 @@ class OCR_HANDLER:
             if frame_duration >= closest_duration:
                 # if closest duration is less than or equals the frame duration, then save the frame
                 output_name = frame_name + str(idx) + '.png'
-                frame = self.ocr_frame(frame)
-                cv2.imwrite(output_name, frame)
-
-                if (idx % 10 == 0) and (idx > 0):
-                    log.info(f"Saving frame: {output_name} with index {idx}, frame_duration {frame_duration} and closest_duration {closest_duration}")
+                output_frame = self.ocr_frame(frame)
+                cv2.imwrite(output_name, output_frame)
+                log.info(f"Saving frame: {output_name} with index {idx}, frame_duration {frame_duration} and closest_duration {closest_duration}")
                 # drop the duration spot from the list, since this duration spot is already saved
                 try:
                     frames_durations.pop(0)
