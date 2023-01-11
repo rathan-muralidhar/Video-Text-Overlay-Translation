@@ -127,7 +127,7 @@ class BOXES_HELPER():
         #lines_with_words = self.get_lines_with_words(organized_tesseract_dictionary)
         #print(lines_with_words)
         result = self.ocr.ocr(frame, cls=True)
-        print(result)
+        log.info(f"OCR RESULT: {result}")
         for element in result[0]:
             
             #paddleocr
@@ -207,10 +207,17 @@ class BOXES_HELPER():
             log.info(f"Text to be printed {translated_text}")
 
 
-
-
+            #font size logic: 
+            box = (x1,y1,x4,y4)
+            font_size = 100
+            size = None
             fontpath = "./Fonts/TiroDevanagariHindi-Regular.ttf" 
-            font = ImageFont.truetype(fontpath, 32)
+            while (size is None or size[0] > box[2] - box[0] or size[1] > box[3] - box[1]) and font_size > 0:
+                font = ImageFont.truetype(fontpath, font_size)
+                size = font.getsize(translated_text)
+                font_size -= 1
+
+            font = ImageFont.truetype(fontpath, font_size)
             img_pil = Image.fromarray(frame)
             draw = ImageDraw.Draw(img_pil)
             draw.text((x1, y1),  translated_text, font = font, fill = (0, 0, 0, 0))
