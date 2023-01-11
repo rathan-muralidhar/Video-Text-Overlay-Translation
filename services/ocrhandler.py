@@ -10,6 +10,7 @@ import math
 import requests
 from PIL import ImageFont, ImageDraw, Image
 from paddleocr import PaddleOCR
+import re
 
 log = logging.getLogger('file')
 
@@ -17,81 +18,84 @@ class BOXES_HELPER():
     def __init__(self):
         self.ocr = PaddleOCR(use_angle_cls=True, lang='en') # need to run only once to download and load model into memory
 
-    def get_organized_tesseract_dictionary(self, tesseract_dictionary):
-        res = {}
-        log.info(f"Tesseract Dictionary {tesseract_dictionary}")
-        n_boxes = len(tesseract_dictionary['level'])
 
-        # Organize blocks
-        res['blocks'] = {}
-        for i in range(n_boxes):
-            if tesseract_dictionary['level'][i] == 2:
-                res['blocks'][tesseract_dictionary['block_num'][i]] = {
-                    'left': tesseract_dictionary['left'][i],
-                    'top': tesseract_dictionary['top'][i],
-                    'width': tesseract_dictionary['width'][i],
-                    'height': tesseract_dictionary['height'][i],
-                    'paragraphs': {}
-                }
 
-        # Organize paragraphs
-        for i in range(n_boxes):
-            if tesseract_dictionary['level'][i] == 3:
-                res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][
-                    tesseract_dictionary['par_num'][i]] = {
-                    'left': tesseract_dictionary['left'][i],
-                    'top': tesseract_dictionary['top'][i],
-                    'width': tesseract_dictionary['width'][i],
-                    'height': tesseract_dictionary['height'][i],
-                    'lines': {}
-                }
+    #TESSERACT CODE FOR OCR (REPLACED BY PADDLEOCR CURRENTLY)
+    # def get_organized_tesseract_dictionary(self, tesseract_dictionary):
+    #     res = {}
+    #     log.info(f"Tesseract Dictionary {tesseract_dictionary}")
+    #     n_boxes = len(tesseract_dictionary['level'])
 
-        # Organize lines
-        for i in range(n_boxes):
-            if tesseract_dictionary['level'][i] == 4:
-                res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][tesseract_dictionary['par_num'][
-                    i]]['lines'][tesseract_dictionary['line_num'][i]] = {
-                    'left': tesseract_dictionary['left'][i],
-                    'top': tesseract_dictionary['top'][i],
-                    'width': tesseract_dictionary['width'][i],
-                    'height': tesseract_dictionary['height'][i],
-                    'words': {}
-                }
+    #     # Organize blocks
+    #     res['blocks'] = {}
+    #     for i in range(n_boxes):
+    #         if tesseract_dictionary['level'][i] == 2:
+    #             res['blocks'][tesseract_dictionary['block_num'][i]] = {
+    #                 'left': tesseract_dictionary['left'][i],
+    #                 'top': tesseract_dictionary['top'][i],
+    #                 'width': tesseract_dictionary['width'][i],
+    #                 'height': tesseract_dictionary['height'][i],
+    #                 'paragraphs': {}
+    #             }
 
-        # Organize words
-        for i in range(n_boxes):
-            if tesseract_dictionary['level'][i] == 5:
-                res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][
-                    tesseract_dictionary['par_num'][
-                        i]]['lines'][tesseract_dictionary['line_num'][i]]['words'][tesseract_dictionary['word_num'][i]] \
-                    = {
-                    'left': tesseract_dictionary['left'][i],
-                    'top': tesseract_dictionary['top'][i],
-                    'width': tesseract_dictionary['width'][i],
-                    'height': tesseract_dictionary['height'][i],
-                    'text': tesseract_dictionary['text'][i],
-                    'conf': float(tesseract_dictionary['conf'][i]),
-                }
+    #     # Organize paragraphs
+    #     for i in range(n_boxes):
+    #         if tesseract_dictionary['level'][i] == 3:
+    #             res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][
+    #                 tesseract_dictionary['par_num'][i]] = {
+    #                 'left': tesseract_dictionary['left'][i],
+    #                 'top': tesseract_dictionary['top'][i],
+    #                 'width': tesseract_dictionary['width'][i],
+    #                 'height': tesseract_dictionary['height'][i],
+    #                 'lines': {}
+    #             }
 
-        return res
+    #     # Organize lines
+    #     for i in range(n_boxes):
+    #         if tesseract_dictionary['level'][i] == 4:
+    #             res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][tesseract_dictionary['par_num'][
+    #                 i]]['lines'][tesseract_dictionary['line_num'][i]] = {
+    #                 'left': tesseract_dictionary['left'][i],
+    #                 'top': tesseract_dictionary['top'][i],
+    #                 'width': tesseract_dictionary['width'][i],
+    #                 'height': tesseract_dictionary['height'][i],
+    #                 'words': {}
+    #             }
 
-    def get_lines_with_words(self, organized_tesseract_dictionary):
-        res = []
-        for block in organized_tesseract_dictionary['blocks'].values():
-            for paragraph in block['paragraphs'].values():
-                for line in paragraph['lines'].values():
-                    if 'words' in line and len(line['words']) > 0:
-                        currentLineText = ''
-                        for word in line['words'].values():
-                            if word['conf'] > 60.0 and not word['text'].isspace():
-                                currentLineText += word['text'] + ' '
-                        if currentLineText != '':
-                            res.append(
-                                {'text': currentLineText, 'left': line['left'], 'top': line['top'], 'width': line[
-                                    'width'], 'height': line[
-                                    'height']})
+    #     # Organize words
+    #     for i in range(n_boxes):
+    #         if tesseract_dictionary['level'][i] == 5:
+    #             res['blocks'][tesseract_dictionary['block_num'][i]]['paragraphs'][
+    #                 tesseract_dictionary['par_num'][
+    #                     i]]['lines'][tesseract_dictionary['line_num'][i]]['words'][tesseract_dictionary['word_num'][i]] \
+    #                 = {
+    #                 'left': tesseract_dictionary['left'][i],
+    #                 'top': tesseract_dictionary['top'][i],
+    #                 'width': tesseract_dictionary['width'][i],
+    #                 'height': tesseract_dictionary['height'][i],
+    #                 'text': tesseract_dictionary['text'][i],
+    #                 'conf': float(tesseract_dictionary['conf'][i]),
+    #             }
 
-        return res
+    #     return res
+
+    # def get_lines_with_words(self, organized_tesseract_dictionary):
+    #     res = []
+    #     for block in organized_tesseract_dictionary['blocks'].values():
+    #         for paragraph in block['paragraphs'].values():
+    #             for line in paragraph['lines'].values():
+    #                 if 'words' in line and len(line['words']) > 0:
+    #                     currentLineText = ''
+    #                     for word in line['words'].values():
+    #                         if word['conf'] > 60.0 and not word['text'].isspace():
+    #                             currentLineText += word['text'] + ' '
+    #                     if currentLineText != '':
+    #                         res.append(
+    #                             {'text': currentLineText, 'left': line['left'], 'top': line['top'], 'width': line[
+    #                                 'width'], 'height': line[
+    #                                 'height']})
+
+    #     return res
 
     def midpoint(self,x1, y1, x2, y2):
         x_mid = int((x1 + x2)/2)
@@ -202,7 +206,10 @@ class BOXES_HELPER():
             translated_text = self.get_translation(text)
             log.info(f"Text to be printed {translated_text}")
 
-            fontpath = "./Fonts/TiroDevanagariHindi-Regular.ttf" # <== 这里是宋体路径 
+
+
+
+            fontpath = "./Fonts/TiroDevanagariHindi-Regular.ttf" 
             font = ImageFont.truetype(fontpath, 32)
             img_pil = Image.fromarray(frame)
             draw = ImageDraw.Draw(img_pil)
@@ -236,8 +243,9 @@ class BOXES_HELPER():
 
 class OCR_HANDLER:
 
-    def __init__(self, video_filepath, cv2_helper, ocr_type="WORDS"):
+    def __init__(self, data, video_filepath, cv2_helper, ocr_type="WORDS"):
         # The video_filepath's name with extension
+        self.data = data
         self.video_filepath = video_filepath
         self.cv2_helper = cv2_helper
         self.ocr_type = ocr_type
@@ -281,7 +289,28 @@ class OCR_HANDLER:
         mssim = cv2.mean(ssim_map)       # mssim = average of ssim map
         return sum(mssim[0:3])
 
+    def durations(self):
+        start_times = []
+        end_times = []
+        log.info(f"DATA {self.data}")
+        if 'durations' in self.data.keys():
+            for each_duration in self.data['durations']:
+                if 'start' in each_duration.keys() and 'end' in each_duration.keys():
+                    start_time = re.findall("[0-9]{2}:[0-9]{2}:[0-9]{2}", each_duration['start'])
+                    end_time = re.findall("[0-9]{2}:[0-9]{2}:[0-9]{2}", each_duration['end'])
+                    if len(start_time) == 1 and len(end_time) == 1:
+                        start_seconds = int(start_time[0][0:2])*3600 + int(start_time[0][3:5])*60 + int(start_time[0][6:])
+                        start_times.append(start_seconds)
+                        end_seconds = int(end_time[0][0:2])*3600 + int(end_time[0][3:5])*60 + int(end_time[0][6:])
+                        end_times.append(end_seconds)
+        return start_times, end_times
+
     def process_frames(self):
+        
+        start_times, end_times = self.durations()
+
+        log.info(f"DURATIONS: START TIMES: {start_times}, END TIMES {end_times}")
+
         frame_name = './' + self.frames_folder + '/' + self.video_name + '_frame_'
 
         if not os.path.exists(self.frames_folder):
@@ -291,61 +320,104 @@ class OCR_HANDLER:
         self.fps = round(video.get(cv2.CAP_PROP_FPS))  # get the FPS of the video_filepath
         frames_durations, frame_count = self.get_saving_frames_durations(video, self.fps)  # list of point to save
 
-        log.info("SAVING VIDEO:", frame_count, "FRAMES AT", self.fps, "FPS")
+        log.info(f"SAVING VIDEO: {frame_count} FRAMES AT {self.fps} FPS")
 
         idx = 0
         previous_frame = None
         output_frame = None
+        first_index = 0 #indicates if the first index of the current duration is completed or not
         while True:
+            skip_duration = 1 #indicates if we're in skip duration of translate duration mode
             is_read, frame = video.read()            
             if not is_read:  # break out of the loop if there are no frames to read
                 break
 
-            if idx!=0:
-                log.info(f"SIMILARITY OF FRAMES: {self.ssim(previous_frame,frame)}")
-                if(self.ssim(previous_frame,frame) >= 2.8):
-                    output_name = frame_name + str(idx) + '.png'
-                    #output_frame = self.ocr_frame(frame)
-                    cv2.imwrite(output_name, output_frame)
-                    previous_frame = frame
-                    log.info(f"Saving frame: {output_name} with index {idx}, frame_duration {frame_duration} and closest_duration {closest_duration}")
-                    # drop the duration spot from the list, since this duration spot is already saved
-                    try:
-                        frames_durations.pop(0)
-                    except IndexError:
-                        pass
-                    # increment the frame count
-                    idx += 1
-                    continue
-                else:
-                    previous_frame = frame
-            else: 
-                previous_frame = frame
-
             frame_duration = idx / self.fps
+
+            #Skip time
+            for i in range(0,len(start_times)):
+                if start_times[i]<=frame_duration and frame_duration<=end_times[i]:
+                    skip_duration = 0 #Translate that frame
+                    break
+
             try:
                 # get the earliest duration to save
                 closest_duration = frames_durations[0]
             except IndexError:
                 # the list is empty, all duration frames were saved
                 break
-            if frame_duration >= closest_duration:
-                # if closest duration is less than or equals the frame duration, then save the frame
-                output_name = frame_name + str(idx) + '.png'
-                output_frame = self.ocr_frame(frame)
-                cv2.imwrite(output_name, output_frame)
-                log.info(f"Saving frame: {output_name} with index {idx}, frame_duration {frame_duration} and closest_duration {closest_duration}")
-                # drop the duration spot from the list, since this duration spot is already saved
-                try:
-                    frames_durations.pop(0)
-                except IndexError:
-                    pass
-            # increment the frame count
-            idx += 1
+
+            if(skip_duration == 0):
+                if(first_index == 0): #If it's the first index of translate duration
+                    first_index = 1 #Currently within first index of translate duration
+                    if frame_duration >= closest_duration:
+                        # if closest duration is less than or equals the frame duration, then save the frame
+                        output_name = frame_name + str(idx) + '.png'
+                        output_frame = self.ocr_frame(frame)
+                        cv2.imwrite(output_name, output_frame)
+                        log.info(f"Saving frame: {output_name} with index {idx}, frame_duration {frame_duration} and closest_duration {closest_duration}")
+                        # drop the duration spot from the list, since this duration spot is already saved
+                        try:
+                            frames_durations.pop(0)
+                        except IndexError:
+                            pass
+                    # increment the frame count
+                    idx += 1
+                    previous_frame = frame
+                else:
+                    if frame_duration >= closest_duration:
+                        # if closest duration is less than or equals the frame duration, then save the frame
+                        #If it's not the first frame within the duration to translate
+                        similarity = self.ssim(previous_frame,frame)
+                        log.info(f"SIMILARITY OF FRAMES: {similarity}")
+                        if(similarity >= 2.8):
+                            #If current frame is similar to previous frame
+                            output_name = frame_name + str(idx) + '.png'
+                            #output_frame = self.ocr_frame(frame)
+                            cv2.imwrite(output_name, output_frame)
+                            previous_frame = frame
+                            log.info(f"Saving frame: {output_name} with index {idx}, frame_duration {frame_duration} and closest_duration {closest_duration}")
+                        else:   #If the current frame is not similar to previous frame
+                            output_name = frame_name + str(idx) + '.png'
+                            output_frame = self.ocr_frame(frame)
+                            cv2.imwrite(output_name, output_frame)
+                            previous_frame = frame
+                            log.info(f"Saving frame: {output_name} with index {idx}, frame_duration {frame_duration} and closest_duration {closest_duration}")
+                        # drop the duration spot from the list, since this duration spot is already saved
+                        try:
+                            frames_durations.pop(0)
+                        except IndexError:
+                            pass
+                        # increment the frame count
+                        idx += 1
+
+            else: #If skip the duration
+                if(first_index == 1):
+                    first_index = 0
+                if frame_duration >= closest_duration:
+                    # if closest duration is less than or equals the frame duration, then save the frame
+                    output_name = frame_name + str(idx) + '.png'
+                    #output_frame = self.ocr_frame(frame)
+                    cv2.imwrite(output_name, frame)
+                    log.info(f"Saving frame: {output_name} with index {idx}, frame_duration {frame_duration} and closest_duration {closest_duration}")
+                    # drop the duration spot from the list, since this duration spot is already saved
+                    try:
+                        frames_durations.pop(0)
+                    except IndexError:
+                        pass
+                # increment the frame count
+                idx += 1
+                previous_frame = frame
+                #store the frame as the output frame
+            
+
+
         #if (idx - 1 % 10 != 0):
             #print(">")
         log.info("\nSaved and processed", idx, "frames")
         video.release()
+
+
 
     def assemble_video(self):
 

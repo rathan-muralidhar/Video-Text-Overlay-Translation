@@ -18,7 +18,7 @@ def video_translate_workflow():
     log.info(f"Request {data}")
     filename = data['filename']
     if os.path.isfile(filename):
-        ocr_handler = OCR_HANDLER(filename, CV2_HELPER(), ocr_mode)
+        ocr_handler = OCR_HANDLER(data, filename, CV2_HELPER(), ocr_mode)
         ocr_handler.process_frames()
         ocr_handler.assemble_video()
     response = {}
