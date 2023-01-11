@@ -21,11 +21,20 @@ CURRENTLY EMPTY
 
 ## Postman Collection
 To play around with the APIs and some hands on, Use this on Postman: 
+durations key is optional
 
 {
-
-  "filename":"input/scaling.mov"
-  
+  "filename":"input/lifeskills.mp4",
+  "durations":[
+    {
+      "start":"00:00:13",
+      "end":"00:00:15"
+    },
+    {
+      "start":"00:01:03",
+      "end":"00:01:08"
+    }
+    ]
 }
 
 ## License
